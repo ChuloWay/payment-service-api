@@ -1,69 +1,193 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateJobDto } from './dto/create-job.dto';
-import { UpdateJobDto } from './dto/update-job.dto';
-import { Repository } from 'typeorm';
-import { Job } from './entities/job.entity';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ContractStatus } from 'src/contract/entities/contract.entity';
-import { Profile } from 'src/profile/entities/profile.entity';
+import { Repository, DataSource, QueryRunner } from 'typeorm';
+import { Job } from './entities/job.entity';
+import { Profile } from '../profile/entities/profile.entity';
+import { ContractStatus } from '../contract/entities/contract.entity';
+import { JobNotFoundException } from 'src/util/exceptions/job-not-found.exception';
+import { ProfileNotFoundException } from 'src/util/exceptions/profile-not-found.exception';
+import { InsufficientBalanceException } from 'src/util/exceptions/insufficient-balance.exception';
 
 @Injectable()
 export class JobService {
+  private readonly logger = new Logger(JobService.name);
+
   constructor(
     @InjectRepository(Job) private jobRepository: Repository<Job>,
-    @InjectRepository(Profile) private profileRepository: Repository<Profile>,
+    private dataSource: DataSource,
   ) {}
 
-  async findUnpaidJobs(profileId: number) {
-    return this.jobRepository
-      .createQueryBuilder('job')
-      .innerJoin('job.contract', 'contract')
-      .where('job.isPaid = false')
-      .andWhere('contract.status = :status', {
-        status: ContractStatus.IN_PROGRESS,
-      })
-      .andWhere(
-        '(contract.contractorId = :profileId OR contract.clientId = :profileId)',
-        { profileId },
-      )
-      .getMany();
+  async findUnpaidJobs(profileId: number): Promise<Job[]> {
+    try {
+      return await this.jobRepository
+        .createQueryBuilder('job')
+        .innerJoinAndSelect('job.contract', 'contract')
+        .where('job.isPaid = :isPaid', { isPaid: false })
+        .andWhere('contract.status = :status', {
+          status: ContractStatus.IN_PROGRESS,
+        })
+        .andWhere(
+          '(contract.contractorId = :profileId OR contract.clientId = :profileId)',
+          { profileId },
+        )
+        .getMany();
+    } catch (error) {
+      this.logger.error(
+        `Failed to find unpaid jobs for profile ${profileId}: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to retrieve unpaid jobs for profile ID ${profileId}. Please try again later.`,
+      );
+    }
   }
 
-  async payForJob(jobId: number, clientId: number) {
-    const job = await this.jobRepository
-      .createQueryBuilder('job')
-      .leftJoinAndSelect('job.contract', 'contract')
-      .leftJoinAndSelect('contract.contractor', 'contractor')
-      .where('job.id = :jobId', { jobId })
-      .getOne();
+  async payForJob(jobId: number, clientId: number): Promise<Job> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    console.log('Job object here:', job);
+    try {
+      const job = await this.getJobWithLock(queryRunner, jobId);
 
-    if (!job || job.isPaid)
-      throw new BadRequestException('Job is already paid or does not exist');
+      if (!job.contract || !job.contract.contractor) {
+        throw new Error('Job does not have a valid contract or contractor');
+      }
 
-    const client = await this.profileRepository.findOne({
-      where: { id: clientId },
-    });
-    const contractor = await this.profileRepository.findOne({
-      where: { id: job.contract?.contractor?.id },
-    });
+      const [client, contractor] = await this.getProfilesWithLock(
+        queryRunner,
+        clientId,
+        job.contract.contractor.id,
+      );
 
-    console.log('contractor:', contractor);
+      this.validatePayment(job, client, contractor);
 
-    if (client.balance < job.price)
-      throw new BadRequestException('Insufficient balance');
+      await this.processPayment(queryRunner, job, client, contractor);
 
-    // Transaction logic for paying contractor
-    client.balance -= job.price;
-    contractor.balance += job.price;
-    job.isPaid = true;
-    job.paidDate = new Date();
+      await queryRunner.commitTransaction();
+      return job;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(
+        `Failed to process payment for job ${jobId}: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to process payment for job ID ${jobId}. Please contact support if the issue persists.`,
+      );
+    } finally {
+      await queryRunner.release();
+    }
+  }
 
-    await this.profileRepository.save(client);
-    await this.profileRepository.save(contractor);
-    await this.jobRepository.save(job);
+  private async getJobWithLock(
+    queryRunner: QueryRunner,
+    jobId: number,
+  ): Promise<Job> {
+    try {
+      const job = await queryRunner.manager
+        .createQueryBuilder(Job, 'job')
+        .setLock('pessimistic_write')
+        .innerJoinAndSelect('job.contract', 'contract')
+        .innerJoinAndSelect('contract.contractor', 'contractor')
+        .where('job.id = :jobId', { jobId })
+        .getOne();
 
-    return job;
+      if (!job || job.isPaid) {
+        this.logger.warn(`Job ${jobId} not found or already paid`);
+        throw new JobNotFoundException(jobId);
+      }
+
+      return job;
+    } catch (error) {
+      this.logger.error(
+        `Error getting job with lock for job ${jobId}: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to retrieve job details for job ID ${jobId}. Please try again.`,
+      );
+    }
+  }
+
+  private async getProfilesWithLock(
+    queryRunner: QueryRunner,
+    clientId: number,
+    contractorId: number,
+  ): Promise<[Profile, Profile]> {
+    try {
+      const [client, contractor] = await Promise.all([
+        queryRunner.manager.findOne(Profile, {
+          where: { id: clientId },
+          lock: { mode: 'pessimistic_write' },
+        }),
+        queryRunner.manager.findOne(Profile, {
+          where: { id: contractorId },
+          lock: { mode: 'pessimistic_write' },
+        }),
+      ]);
+
+      if (!client || !contractor) {
+        this.logger.warn(
+          `Client ${clientId} or contractor ${contractorId} not found`,
+        );
+        throw new ProfileNotFoundException();
+      }
+
+      return [client, contractor];
+    } catch (error) {
+      this.logger.error(
+        `Error fetching profiles with lock for client ${clientId} and contractor ${contractorId}: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to retrieve profiles for client ID ${clientId} and contractor ID ${contractorId}.`,
+      );
+    }
+  }
+
+  private validatePayment(
+    job: Job,
+    client: Profile,
+    contractor: Profile,
+  ): void {
+    try {
+      if (client.balance < job.price) {
+        this.logger.warn(`Insufficient balance for client ${client.id}`);
+        throw new InsufficientBalanceException(client.balance, job.price);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Validation error during payment for job ${job.id}: ${error.message}`,
+      );
+      throw new Error(
+        `Insufficient balance to pay for job ID ${job.id}. Please top up your account.`,
+      );
+    }
+  }
+
+  private async processPayment(
+    queryRunner: QueryRunner,
+    job: Job,
+    client: Profile,
+    contractor: Profile,
+  ): Promise<void> {
+    try {
+      client.balance -= job.price;
+      contractor.balance += job.price;
+      job.isPaid = true;
+      job.paidDate = new Date();
+
+      await Promise.all([
+        queryRunner.manager.save(client),
+        queryRunner.manager.save(contractor),
+        queryRunner.manager.save(job),
+      ]);
+
+      this.logger.log(`Successfully paid for job ${job.id}`);
+    } catch (error) {
+      this.logger.error(
+        `Error processing payment for job ${job.id}: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to complete payment for job ID ${job.id}. Please try again later.`,
+      );
+    }
   }
 }

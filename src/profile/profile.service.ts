@@ -1,86 +1,101 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Profile } from './entities/profile.entity';
-import { Job } from 'src/job/entities/job.entity';
+import { Job } from '../job/entities/job.entity';
+
+import { DepositLimitExceededException } from 'src/util/exceptions/deposit-limit-exceeded.exception';
+import { ProfileNotFoundException } from 'src/util/exceptions/profile-not-found.exception';
 
 @Injectable()
 export class ProfileService {
+  private readonly logger = new Logger(ProfileService.name);
+
   constructor(
     @InjectRepository(Profile)
     private profileRepository: Repository<Profile>,
-    @InjectRepository(Job)
-    private jobRepository: Repository<Job>,
+    private dataSource: DataSource,
   ) {}
 
   async findOne(id: number): Promise<Profile> {
-    return this.profileRepository.findOne({ where: { id } });
-  }
-
-  async depositBalance(userId: number, amount: number) {
-    console.log(
-      `DepositBalance called with userId: ${userId}, amount: ${amount}`,
-    );
-
-    // Fetch profile
-    const profile = await this.profileRepository.findOne({
-      where: { id: userId },
-    });
-    console.log(`Fetched profile for userId: ${userId}`, profile);
-
-    // Fetch outstanding payments
-    const outstandingPayments =
-      await this.getOutstandingPaymentsForUser(userId);
-    console.log(
-      `Outstanding payments for userId: ${userId}:`,
-      outstandingPayments,
-    );
-
-    // Calculate max deposit
-    const maxDeposit = outstandingPayments * 0.25;
-    console.log(`Max deposit allowed for userId: ${userId}: ${maxDeposit}`);
-
-    // Check if deposit exceeds limit
-    if (amount > maxDeposit) {
-      console.error(
-        `Deposit amount ${amount} exceeds max deposit limit ${maxDeposit} for userId: ${userId}`,
-      );
-      throw new BadRequestException('Deposit exceeds the allowed limit');
+    try {
+      const profile = await this.profileRepository.findOne({ where: { id } });
+      if (!profile) {
+        throw new ProfileNotFoundException();
+      }
+      return profile;
+    } catch (error) {
+      this.logger.error(`Error finding profile: ${error.message}`);
+      if (error instanceof ProfileNotFoundException) {
+        throw error;
+      }
+      throw new NotFoundException(`Profile with ID ${id} not found`);
     }
-
-    // Convert profile.balance from string to number before updating
-    profile.balance = Number(profile.balance) + amount;
-    console.log(`New balance for userId: ${userId}: ${profile.balance}`);
-
-    // Save profile
-    await this.profileRepository.save(profile);
-    console.log(`Profile updated and saved for userId: ${userId}`);
-
-    return profile;
   }
 
-  async getOutstandingPaymentsForUser(userId: number) {
-    console.log(`getOutstandingPaymentsForUser called with userId: ${userId}`);
+  async depositBalance(userId: number, amount: number): Promise<Profile> {
+    this.logger.log(`Attempting to deposit ${amount} for user ${userId}`);
 
-    // Fetch unpaid jobs for the user
-    const unpaidJobs = await this.jobRepository
-      .createQueryBuilder('job')
-      .innerJoin('job.contract', 'contract')
-      .where('contract.clientId = :userId', { userId })
-      .andWhere('job.isPaid = false')
-      .getMany();
-    console.log(`Unpaid jobs for userId: ${userId}:`, unpaidJobs);
+    try {
+      return await this.dataSource.transaction(
+        async (transactionalEntityManager) => {
+          const profile = await transactionalEntityManager.findOne(Profile, {
+            where: { id: userId },
+            lock: { mode: 'pessimistic_write' },
+          });
 
-    // Convert job.price from string to number and calculate total outstanding payments
-    const totalOutstandingPayments = unpaidJobs.reduce(
-      (total, job) => total + Number(job.price),
-      0,
-    );
-    console.log(
-      `Total outstanding payments for userId: ${userId}:`,
-      totalOutstandingPayments,
-    );
+          if (!profile) {
+            throw new ProfileNotFoundException();
+          }
 
-    return totalOutstandingPayments;
+          const outstandingPayments = await this.getOutstandingPaymentsForUser(
+            userId,
+            transactionalEntityManager,
+          );
+          const maxDeposit = outstandingPayments * 0.25;
+
+          if (amount > maxDeposit) {
+            throw new DepositLimitExceededException(amount, maxDeposit);
+          }
+
+          profile.balance = Number(profile.balance) + amount;
+          await transactionalEntityManager.save(profile);
+
+          this.logger.log(
+            `Successfully deposited ${amount} for user ${userId}. New balance: ${profile.balance}`,
+          );
+          return profile;
+        },
+      );
+    } catch (error) {
+      this.logger.error(`Error depositing balance: ${error.message}`);
+      if (
+        error instanceof ProfileNotFoundException ||
+        error instanceof DepositLimitExceededException
+      ) {
+        throw error;
+      }
+      throw new Error(`Failed to deposit balance for user ${userId}`);
+    }
+  }
+
+  private async getOutstandingPaymentsForUser(
+    userId: number,
+    transactionalEntityManager: EntityManager,
+  ): Promise<number> {
+    try {
+      const result = await transactionalEntityManager
+        .createQueryBuilder(Job, 'job')
+        .select('SUM(job.price)', 'totalOutstanding')
+        .innerJoin('job.contract', 'contract')
+        .where('contract.clientId = :userId', { userId })
+        .andWhere('job.isPaid = :isPaid', { isPaid: false })
+        .getRawOne();
+
+      return Number(result.totalOutstanding) || 0;
+    } catch (error) {
+      this.logger.error(`Error getting outstanding payments: ${error.message}`);
+      throw new Error(`Failed to get outstanding payments for user ${userId}`);
+    }
   }
 }

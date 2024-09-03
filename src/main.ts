@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import * as bodyParser from 'body-parser';
@@ -10,27 +10,33 @@ import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+  const logger = new Logger('Bootstrap');
   const configService = app.get(ConfigService);
 
   app.setGlobalPrefix('api/v1');
 
+  // Use morgan for HTTP request logging
   app.use(morgan('combined'));
 
+  // Use validation pipe globally
   app.useGlobalPipes(
     new ValidationPipe({ stopAtFirstError: true, whitelist: true }),
   );
 
+  // Body parser to handle raw JSON
   app.use(
     bodyParser.json({
       verify: (req, res, buffer) => (req['rawBody'] = buffer),
     }),
   );
 
+  // Compression middleware
   app.use(compression());
 
+  // Helmet for security headers
   app.use(helmet());
 
+  // Enable CORS
   app.enableCors({
     origin: '*',
     preflightContinue: true,
@@ -40,6 +46,7 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Swagger configuration
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Payment Service API')
     .setDescription('The Payment Service API documentation')
@@ -51,10 +58,13 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/v1/docs', app, document);
 
+  // Get port from environment variables or use default
   const port = configService.get<number>('PORT') || 3000;
 
   await app.listen(port);
-  console.log(
+
+  // Use the logger to log a message
+  logger.log(
     `Payment Service API is listening on: http://localhost:${port} 🚀`,
   );
 }

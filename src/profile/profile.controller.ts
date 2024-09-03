@@ -3,27 +3,59 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  ValidationPipe,
+  Res,
 } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { DepositDto } from './dto/deposit.dto';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
+import { Profile } from './entities/profile.entity';
+import { Response } from 'express';
 
-@Controller('profile')
+@ApiTags('profiles')
+@Controller('profiles')
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.profileService.findOne(+id);
-  }
-
-  @Post('/balances/deposit/:userId')
+  @Post(':userId/deposit')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Deposit balance to a user profile' })
+  @ApiParam({
+    name: 'userId',
+    description: 'The ID of the user',
+    type: 'number',
+  })
+  @ApiBody({ description: 'Deposit information', type: DepositDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Deposit successful',
+    type: Profile,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid deposit input' })
+  @ApiResponse({ status: 404, description: 'User profile not found' })
   async deposit(
-    @Param('userId') userId: number,
-    @Body() depositDto: DepositDto,
-  ) {
-    return this.profileService.depositBalance(userId, depositDto.amount);
+    @Param('userId') userId: string,
+    @Body(new ValidationPipe({ transform: true })) depositDto: DepositDto,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const updatedProfile = await this.profileService.depositBalance(
+      +userId,
+      depositDto.amount,
+    );
+    return res.status(HttpStatus.OK).json({
+      statusCode: HttpStatus.OK,
+      data: updatedProfile,
+      message: 'Deposit successful',
+    });
   }
 }
