@@ -6,7 +6,7 @@ This project is a case study designed as the final validation for the role of Pa
 
 ## Project Overview
 
-The goal of this project is to demonstrate the ability to design, develop, and document a backend API. The application is built using the NestJS framework, leveraging a NOSQL database (MongoDB) for data persistence, and is designed with role-based access control for different user types.
+The goal of this project is to demonstrate the ability to design, develop, and document a backend API. The application is built using the NestJS framework, leveraging an SQL database (PostgreSQL) for data persistence.
 
 ## Technologies Used
 
