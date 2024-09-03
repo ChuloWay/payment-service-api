@@ -101,6 +101,10 @@ Explore the API documentation at - [LOCALHOST] -- [Swagger](http://localhost:300
 
 ![Swagger Api](./public/images/docs.png)
 
+## Future Enhancements
+
+In future iterations, I plan to implement a Queue System for handling all transactions. For this version, I opted to use database transactions due to the lightweight nature of the current requirements and the unknown scale of the target deployment. However, as the system scales, transitioning to a queue-based approach would better manage concurrency and ensure reliable processing under higher loads.
+
 ## Acknowledgements
 
 Special thanks to:
