@@ -39,8 +39,8 @@ export class Profile {
   updatedAt: Date;
 
   @OneToMany(() => Contract, (contract) => contract.contractor, {
-    eager: true,
-    cascade: true,
+    eager: false,
+    cascade: ['insert', 'update'],
     onDelete: 'SET NULL',
   })
   contractorContracts: Contract[];

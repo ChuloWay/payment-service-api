@@ -22,13 +22,12 @@ export class Contract {
   status: ContractStatus;
 
   @ManyToOne(() => Profile, (profile) => profile.contractorContracts, {
-    // eager: true,
     onDelete: 'SET NULL',
   })
   contractor: Profile;
 
   @ManyToOne(() => Profile, (profile) => profile.clientContracts, {
-    eager: true,
+    eager: false,
     onDelete: 'SET NULL',
   })
   client: Profile;

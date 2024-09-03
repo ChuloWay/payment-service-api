@@ -22,7 +22,7 @@ export class Job {
   paidDate: Date;
 
   @ManyToOne(() => Contract, (contract) => contract, {
-    eager: true,
+    eager: false,
     onDelete: 'CASCADE',
   })
   contract: Contract;
