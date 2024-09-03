@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NestMiddleware,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { ProfileService } from 'src/profile/profile.service';
 
@@ -14,8 +10,7 @@ export class AuthMiddleware implements NestMiddleware {
     const profileIdHeader = req.headers['profile-id'];
 
     const profileId = parseInt(profileIdHeader as string, 10);
-    if (isNaN(profileId))
-      throw new UnauthorizedException('Invalid Profile ID format');
+    if (isNaN(profileId)) throw new UnauthorizedException('Invalid Profile ID format');
 
     const profile = await this.profileService.findOne(profileId);
     if (!profile) throw new UnauthorizedException('Profile not found');

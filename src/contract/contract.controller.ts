@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Req,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, Req } from '@nestjs/common';
 
 import { ContractService } from './contract.service';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';

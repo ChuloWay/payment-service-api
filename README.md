@@ -1,73 +1,116 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Basic Payment Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Overview
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This project is a case study designed as the final validation for the role of Payment Engineer. It demonstrates core skills and competencies essential for the role, including implementing transactions, handling race conditions, ensuring concurrency, adhering to SOLID principles and software design patterns, writing efficient and optimized database queries, and writing tests. The system is built using NestJS and PostgreSQL with TypeORM.
 
-## Description
+## Project Overview
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+The goal of this project is to demonstrate the ability to design, develop, and document a backend API. The application is built using the NestJS framework, leveraging a NOSQL database (MongoDB) for data persistence, and is designed with role-based access control for different user types.
 
-## Installation
+## Technologies Used
 
-```bash
-$ npm install
-```
+- **NestJS:** A progressive Node.js framework for building efficient, scalable server-side applications.
+- **TypeScript:** A strongly typed programming language that builds on JavaScript.
+- **PostgreSQL:** A powerful, open-source object-relational database system.
+- **TypeORM:** An Object-Relational Mapping (ORM) library for TypeScript and JavaScript.
+- **Swagger:** Integrated for comprehensive API documentation.
 
-## Running the app
+## Features
 
-```bash
-# development
-$ npm run start
+1. **User Authentication:**
 
-# watch mode
-$ npm run start:dev
+   - Profiles are categorized as either clients or contractors.
+   - Authentication middleware ensures that each request is associated with a valid profile.
+   - Unauthorized access is handled with appropriate status codes.
 
-# production mode
-$ npm run start:prod
-```
+2. **Contract Management:**
 
-## Test
+   - Clients can create contracts with contractors.
+   - Contracts have statuses: new, in_progress, and terminated.
+   - Only in_progress contracts are considered active.
+   - Clients and contractors can view their associated contracts.
 
-```bash
-# unit tests
-$ npm run test
+3. **Job Management:**
 
-# e2e tests
-$ npm run test:e2e
+   - Contractors perform jobs for clients under specific contracts.
+   - Clients can pay contractors for completed jobs, subject to balance constraints.
+   - Only unpaid jobs for active contracts are retrievable.
 
-# test coverage
-$ npm run test:cov
-```
+4. **Admin Functionality:**
+   - Admins can view the best-performing profession within a specified time range.
+   - Admins can also view the top-paying clients within a given period.
 
-## Support
+## Implementation Details
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+The project is implemented using NodeJS, NestJS, TypeScript, and TypeORM for database interactions. PostgreSQL is used as the database.
 
-## Stay in touch
+## Getting Started
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### Prerequisites
 
-## License
+Ensure the following packages are installed locally:
 
-Nest is [MIT licensed](LICENSE).
+1. [PostgreSQL](https://www.postgresql.org/download/)
+2. [Node (LTS Version)](https://nodejs.org)
+3. [NPM](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+4. NestJS CLI: `npm install @nestjs/cli -g`
+
+### Setup Steps
+
+1. **Clone the repo**
+
+   ```bash
+   git clone https://github.com/ChuloWay/payment-service-api
+   ```
+
+2. **Create an env file:**
+
+   - Duplicate the `.env.example` file in the project root.
+   - Rename the duplicated file to `.env`.
+   - Open the `.env` file and set your variables as shown in the example file.
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Ensure to fill in the necessary values in the `.env` file for a smooth configuration.
+
+3. **Run Migration:**
+
+   ```bash
+   npm run apply:migration
+   ```
+
+4. **Start your server:**
+
+   ```bash
+   npm run start:dev
+   ```
+
+### Unit Tests
+
+## `npm run test`
+
+- Includes unit tests for Core Services using Jest.
+- Tests cover CRUD operations, input validation, error handling and payments.
+
+## API Documentation
+
+Explore the API documentation at - [LOCALHOST] -- [Swagger](http://localhost:3000/api/v1/docs).
+
+![Swagger Api](./public/images/docs.png)
+
+## Acknowledgements
+
+Special thanks to:
+
+- NestJS
+- TypeScript
+- PostgresSQL
+- TypeORM
+- Swagger
+
+## Conclusion
+
+Thank you for exploring our Payment Service System! Feel free to provide feedback, report issues, or contribute to the project. Happy coding!

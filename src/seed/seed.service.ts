@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Contract,
-  ContractStatus,
-} from 'src/contract/entities/contract.entity';
+import { Contract, ContractStatus } from 'src/contract/entities/contract.entity';
 import { Job } from 'src/job/entities/job.entity';
 import { Profile, ProfileRole } from 'src/profile/entities/profile.entity';
 import { Repository } from 'typeorm';

@@ -25,15 +25,9 @@ export class Init1725213186385 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "jobs" DROP CONSTRAINT "FK_f4f2e7125f414668e5d0bef8233"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "contracts" DROP CONSTRAINT "FK_62a5163bebb9d95e503b01c0fb0"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "contracts" DROP CONSTRAINT "FK_25e8a897e43bfc4dde1f0918995"`,
-    );
+    await queryRunner.query(`ALTER TABLE "jobs" DROP CONSTRAINT "FK_f4f2e7125f414668e5d0bef8233"`);
+    await queryRunner.query(`ALTER TABLE "contracts" DROP CONSTRAINT "FK_62a5163bebb9d95e503b01c0fb0"`);
+    await queryRunner.query(`ALTER TABLE "contracts" DROP CONSTRAINT "FK_25e8a897e43bfc4dde1f0918995"`);
     await queryRunner.query(`DROP TABLE "jobs"`);
     await queryRunner.query(`DROP TABLE "contracts"`);
     await queryRunner.query(`DROP TABLE "profiles"`);

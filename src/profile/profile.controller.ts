@@ -1,33 +1,18 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-  ValidationPipe,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, HttpCode, HttpStatus, UseGuards, ValidationPipe, Res } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { DepositDto } from './dto/deposit.dto';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiParam,
-  ApiBody,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { Profile } from './entities/profile.entity';
 import { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 
-@ApiTags('profiles')
-@Controller('profiles')
+@ApiTags('profile')
+@Controller('profile')
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
-  @Post(':userId/deposit')
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
+  @Post('/balances/deposit/:userId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Deposit balance to a user profile' })
   @ApiParam({
@@ -48,10 +33,7 @@ export class ProfileController {
     @Body(new ValidationPipe({ transform: true })) depositDto: DepositDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const updatedProfile = await this.profileService.depositBalance(
-      +userId,
-      depositDto.amount,
-    );
+    const updatedProfile = await this.profileService.depositBalance(+userId, depositDto.amount);
     return res.status(HttpStatus.OK).json({
       statusCode: HttpStatus.OK,
       data: updatedProfile,

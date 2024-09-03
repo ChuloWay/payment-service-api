@@ -26,11 +26,7 @@ async function seedDatabase(dataSource: DataSource) {
   const contractRepository = dataSource.getRepository(Contract);
   const jobRepository = dataSource.getRepository(Job);
 
-  const seedService = new SeedService(
-    profileRepository,
-    contractRepository,
-    jobRepository,
-  );
+  const seedService = new SeedService(profileRepository, contractRepository, jobRepository);
   await seedService.seed();
 }
 

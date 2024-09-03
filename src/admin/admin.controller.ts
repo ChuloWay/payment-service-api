@@ -31,11 +31,7 @@ export class AdminController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 500, description: 'Internal Server Error' })
-  async getBestClients(
-    @Query('start') start: Date,
-    @Query('end') end: Date,
-    @Query('limit') limit: number = 2,
-  ) {
+  async getBestClients(@Query('start') start: Date, @Query('end') end: Date, @Query('limit') limit: number = 2) {
     const result = await this.adminService.getBestClients(start, end, limit);
     return {
       statusCode: HttpStatus.OK,
@@ -63,10 +59,7 @@ export class AdminController {
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 500, description: 'Internal Server Error' })
   @Get('/best-profession')
-  async getBestProfession(
-    @Query('start') start: Date,
-    @Query('end') end: Date,
-  ) {
+  async getBestProfession(@Query('start') start: Date, @Query('end') end: Date) {
     const result = await this.adminService.getBestProfession(start, end);
     return {
       statusCode: HttpStatus.OK,

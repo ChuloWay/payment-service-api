@@ -19,9 +19,7 @@ async function bootstrap() {
   app.use(morgan('combined'));
 
   // Use validation pipe globally
-  app.useGlobalPipes(
-    new ValidationPipe({ stopAtFirstError: true, whitelist: true }),
-  );
+  app.useGlobalPipes(new ValidationPipe({ stopAtFirstError: true, whitelist: true }));
 
   // Body parser to handle raw JSON
   app.use(
@@ -40,8 +38,7 @@ async function bootstrap() {
   app.enableCors({
     origin: '*',
     preflightContinue: true,
-    allowedHeaders:
-      'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept, Observe, XMLHttpRequest',
+    allowedHeaders: 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept, Observe, XMLHttpRequest',
     methods: 'GET,PUT,POST,DELETE,UPDATE,OPTIONS',
     credentials: true,
   });
@@ -64,9 +61,7 @@ async function bootstrap() {
   await app.listen(port);
 
   // Use the logger to log a message
-  logger.log(
-    `Payment Service API is listening on: http://localhost:${port} 🚀`,
-  );
+  logger.log(`Payment Service API is listening on: http://localhost:${port} 🚀`);
 }
 
 bootstrap();

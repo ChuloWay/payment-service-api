@@ -37,52 +37,39 @@ export class ProfileService {
     this.logger.log(`Attempting to deposit ${amount} for user ${userId}`);
 
     try {
-      return await this.dataSource.transaction(
-        async (transactionalEntityManager) => {
-          const profile = await transactionalEntityManager.findOne(Profile, {
-            where: { id: userId },
-            lock: { mode: 'pessimistic_write' },
-          });
+      return await this.dataSource.transaction(async (transactionalEntityManager) => {
+        const profile = await transactionalEntityManager.findOne(Profile, {
+          where: { id: userId },
+          lock: { mode: 'pessimistic_write' },
+        });
 
-          if (!profile) {
-            throw new ProfileNotFoundException();
-          }
+        if (!profile) {
+          throw new ProfileNotFoundException();
+        }
 
-          const outstandingPayments = await this.getOutstandingPaymentsForUser(
-            userId,
-            transactionalEntityManager,
-          );
-          const maxDeposit = outstandingPayments * 0.25;
+        const outstandingPayments = await this.getOutstandingPaymentsForUser(userId, transactionalEntityManager);
+        const maxDeposit = outstandingPayments * 0.25;
 
-          if (amount > maxDeposit) {
-            throw new DepositLimitExceededException(amount, maxDeposit);
-          }
+        if (amount > maxDeposit) {
+          throw new DepositLimitExceededException(amount, maxDeposit);
+        }
 
-          profile.balance = Number(profile.balance) + amount;
-          await transactionalEntityManager.save(profile);
+        profile.balance = Number(profile.balance) + amount;
+        await transactionalEntityManager.save(profile);
 
-          this.logger.log(
-            `Successfully deposited ${amount} for user ${userId}. New balance: ${profile.balance}`,
-          );
-          return profile;
-        },
-      );
+        this.logger.log(`Successfully deposited ${amount} for user ${userId}. New balance: ${profile.balance}`);
+        return profile;
+      });
     } catch (error) {
       this.logger.error(`Error depositing balance: ${error.message}`);
-      if (
-        error instanceof ProfileNotFoundException ||
-        error instanceof DepositLimitExceededException
-      ) {
+      if (error instanceof ProfileNotFoundException || error instanceof DepositLimitExceededException) {
         throw error;
       }
       throw new Error(`Failed to deposit balance for user ${userId}`);
     }
   }
 
-  private async getOutstandingPaymentsForUser(
-    userId: number,
-    transactionalEntityManager: EntityManager,
-  ): Promise<number> {
+  private async getOutstandingPaymentsForUser(userId: number, transactionalEntityManager: EntityManager): Promise<number> {
     try {
       const result = await transactionalEntityManager
         .createQueryBuilder(Job, 'job')

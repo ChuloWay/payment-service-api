@@ -10,6 +10,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AdminModule } from './admin/admin.module';
 import { AuthMiddleware } from './auth/middleware/auth.middleware';
 import { SeedModule } from './seed/seed.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -17,6 +18,12 @@ import { SeedModule } from './seed/seed.module';
       isGlobal: true,
     }),
     TypeOrmModule.forRoot(dataSourceOptions),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
     ProfileModule,
     ContractModule,
     JobModule,
@@ -28,8 +35,6 @@ import { SeedModule } from './seed/seed.module';
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(AuthMiddleware)
-      .forRoutes({ path: '*', method: RequestMethod.ALL });
+    consumer.apply(AuthMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL });
   }
 }

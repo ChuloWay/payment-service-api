@@ -1,9 +1,4 @@
-import {
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Contract, ContractStatus } from './entities/contract.entity';
 import { Repository } from 'typeorm';
@@ -32,9 +27,7 @@ export class ContractService {
         .getOne();
 
       if (!contract) {
-        this.logger.warn(
-          `Contract not found or forbidden for profile ${profileId}`,
-        );
+        this.logger.warn(`Contract not found or forbidden for profile ${profileId}`);
         throw new ForbiddenException('You do not have access to this contract');
       }
 
@@ -64,16 +57,12 @@ export class ContractService {
         })
         .getMany();
 
-      this.logger.log(
-        `Found ${activeContracts.length} active contracts for profile ${profileId}`,
-      );
+      this.logger.log(`Found ${activeContracts.length} active contracts for profile ${profileId}`);
 
       return activeContracts;
     } catch (error) {
       this.logger.error(`Error finding active contracts: ${error.message}`);
-      throw new Error(
-        `Failed to fetch active contracts for profile ${profileId}`,
-      );
+      throw new Error(`Failed to fetch active contracts for profile ${profileId}`);
     }
   }
 }
